@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "bettermw",
+  "version": "${version}",
+
+  "name": "Better Minewind",
+  "description": "A quality of life mod for the Minewind server",
+  "authors": [
+    "tatatot234"
+  ],
+  "contact": {
+    "homepage": "",
+    "sources": "https://github.com/tatatot234/BetterMinewind"
+  },
+
+  "license": "CC0-1.0",
+  "icon": "assets/bettermw/icon.png",
+
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.tatatot234.betterMinewind.BetterMinewind"
+    ]
+  },
+  "mixins": [
+  ],
+
+  "depends": {
+    "fabricloader": ">=0.7.4",
+    "fabric": "*",
+    "minecraft": "1.16.x"
+  },
+  "suggests": {
+    "another-mod": "*"
+  }
+}
