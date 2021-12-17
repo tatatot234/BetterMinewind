@@ -1,6 +1,7 @@
 package com.tatatot234.betterMinewind;
 
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -8,11 +9,12 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.InGameHud;
-import net.minecraft.client.options.KeyBinding;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -38,6 +40,7 @@ public class BetterMinewind implements ModInitializer {
     private static Soul iceSoul;
     private static Soul fireSoul;
     private static Soul shadowSoul;
+    private static Soul undeadSoul;
     private static Soul dragonSoul;
     private static Soul zordSoul;
 
@@ -46,7 +49,7 @@ public class BetterMinewind implements ModInitializer {
     private static final String LORE_KEY    = "Lore";
     private int ticksSinceLastJump;
 
-    public final Identifier soulSprites = new Identifier("bettermw","textures/souls.png");
+    public static final Identifier soulSprites = new Identifier("bettermw","textures/souls.png");
 
     /*
     Todo:   Zord doesnt get displayed on the server *sometimes*
@@ -81,24 +84,24 @@ public class BetterMinewind implements ModInitializer {
         //Gets called once cliendside and then the client gets sent the server packet once aswell ( Only if you are running the mod on a singleplayer world )
         UseItemCallback.EVENT.register((player, world, hand) ->{
             if(world.isClient()){
-                if(hand.equals(Hand.MAIN_HAND)){
-                    ItemStack itemStack = player.inventory.getMainHandStack();
+                if(hand == Hand.MAIN_HAND){
+                    ItemStack itemStack = player.getInventory().getMainHandStack();
                     if(hasLore(itemStack)) {
-                        String lore = itemStack.getTag().getCompound(DISPLAY_KEY).get(LORE_KEY).asString();
+                        String lore = itemStack.getNbt().getCompound(DISPLAY_KEY).get(LORE_KEY).asString();
                         CheckForConsume(lore);
                     }
-                    return new TypedActionResult<ItemStack>(ActionResult.PASS, player.inventory.getMainHandStack());
+                    return new TypedActionResult<ItemStack>(ActionResult.PASS, player.getInventory().getMainHandStack());
                 }
-                else if(hand.equals(Hand.OFF_HAND)){
-                    ItemStack itemStack = player.inventory.offHand.get(0);
+                else if(hand == Hand.OFF_HAND){
+                    ItemStack itemStack = player.getOffHandStack();
                     if(hasLore(itemStack)) {
-                        String lore = itemStack.getTag().getCompound(DISPLAY_KEY).get(LORE_KEY).asString();
+                        String lore = itemStack.getNbt().getCompound(DISPLAY_KEY).get(LORE_KEY).asString();
                         CheckForConsume(lore);
                     }
-                    return new TypedActionResult<ItemStack>(ActionResult.PASS, player.inventory.offHand.get(0));
+                    return new TypedActionResult<ItemStack>(ActionResult.PASS, player.getOffHandStack());
                 }
             }
-            return new TypedActionResult<ItemStack>(ActionResult.PASS, player.inventory.getMainHandStack());
+            return new TypedActionResult<ItemStack>(ActionResult.PASS, player.getInventory().getMainHandStack());
         });
 
         //render event
@@ -107,9 +110,10 @@ public class BetterMinewind implements ModInitializer {
 
             for(int i= 0,activeSouls = 0; i<souls.length;i++){
                 if(souls[i].isActive()){
-                    mc.getTextureManager().bindTexture(soulSprites);            //this works, but look at betterpvp at how they register their renders.
+                    RenderSystem.setShader(GameRenderer::getPositionTexShader);
+                    RenderSystem.setShaderTexture(0, soulSprites);
                     if(souls[i].soulId == zordSoul.soulId){
-                        if(findSlotWithLore(0,1,souls[i].soulId,mc.player.inventory.offHand) != -1){
+                        if(hasLore(mc.player.getOffHandStack())){
                             souls[i].drawSoul(hud, matrixStack, activeSouls);
                         }
                     } else{
@@ -130,6 +134,7 @@ public class BetterMinewind implements ModInitializer {
                 fireSoul = new Soul(160,"fire",0,16),
                 shadowSoul = new Soul(140,"shadow",0,32),
                 dragonSoul = new Soul(160,"dragon",0,48),
+                undeadSoul = new Soul(160,"undead",32,16),
                 //Always have zord be the last soul !!
                 zordSoul = new Soul(140,"blinking!",32,0),
         };
@@ -140,9 +145,9 @@ public class BetterMinewind implements ModInitializer {
 
     private void SpellHudOnTick(MinecraftClient client) {
         //Fill slotsToCheck
-        for (int i = 0; i < 4; i++) { slotsToCheck[i] = client.player.inventory.armor.get(i); }
-        slotsToCheck[4] = client.player.inventory.offHand.get(0);
-        slotsToCheck[5] = client.player.inventory.getMainHandStack();
+        for (int i = 0; i < 4; i++) { slotsToCheck[i] = client.player.getInventory().armor.get(i); }
+        slotsToCheck[4] = client.player.getOffHandStack();
+        slotsToCheck[5] = client.player.getInventory().getMainHandStack();
         /*slotsToCheck  0:Boots
          *               1:Legs
          *               2:Chest
@@ -153,7 +158,7 @@ public class BetterMinewind implements ModInitializer {
         //count the amount of souls in player's current setup (Zord always has 3)
         for (int i = 0; i < 6; i++) {
             if(hasLore(slotsToCheck[i])){
-                String lore = slotsToCheck[i].getTag().getCompound(DISPLAY_KEY).get(LORE_KEY).asString();
+                String lore = slotsToCheck[i].getNbt().getCompound(DISPLAY_KEY).get(LORE_KEY).asString();
                 if (lore.contains("- Accumulates")) {
                     int soulAmount = Integer.parseInt(lore.replaceAll("(?<!- Accumulates )[0-9]", "").replaceAll("\\D", ""));
                     if (lore.contains(iceSoul.soulId)) {
@@ -162,6 +167,8 @@ public class BetterMinewind implements ModInitializer {
                         shadowSoul.setSoulSlot(i, soulAmount);
                     } else if (lore.contains(fireSoul.soulId)) {
                         fireSoul.setSoulSlot(i, soulAmount);
+                    } else if(lore.contains(undeadSoul.soulId)) {
+                        undeadSoul.setSoulSlot(i, soulAmount);
                     } else if (lore.contains(dragonSoul.soulId)) {
                         dragonSoul.setSoulSlot(i, soulAmount);
 
@@ -206,11 +213,11 @@ public class BetterMinewind implements ModInitializer {
 
         while (elytraHotswapBinding.wasPressed()){
             int startSlot = 9;
-            ItemStack armor = client.player.inventory.armor.get(2);
+            ItemStack armor = client.player.getInventory().armor.get(2);
             if(!armor.isEmpty()){
                 String sArmor = armor.getItem().toString();
                 if(sArmor.contains("_chestplate")){
-                    int slot = findSlotWithItem(startSlot, 36,"elytra", client.player.inventory);
+                    int slot = findSlotWithItem(startSlot, 36,"elytra", client.player.getInventory());
                     if (slot != -1){
                         client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId,
                                 slot,
@@ -218,7 +225,7 @@ public class BetterMinewind implements ModInitializer {
                                 SlotActionType.SWAP, client.player);
 
                         //Put rocket into slot #1 if found
-                        int rocket = findSlotWithItem(startSlot,36,"firework_rocket", client.player.inventory);
+                        int rocket = findSlotWithItem(startSlot,36,"firework_rocket", client.player.getInventory());
                         if (rocket != -1){
                             client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId,
                                     rocket,
@@ -228,7 +235,7 @@ public class BetterMinewind implements ModInitializer {
                     }
                 }
                 else {
-                    int slot = findSlotWithItem(startSlot, 36, "_chestplate", client.player.inventory);
+                    int slot = findSlotWithItem(startSlot, 36, "_chestplate", client.player.getInventory());
                     if (slot != -1){
                         client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId,
                                 slot,
@@ -244,12 +251,12 @@ public class BetterMinewind implements ModInitializer {
             int startSlot = 9;
             String aegisLore = "Fabled animal\\'s skin, worn";
             String aegisBookLore = "Right click your dear friend.";
-            ItemStack armor = client.player.inventory.armor.get(2);
+            ItemStack armor = client.player.getInventory().armor.get(2);
             if(!armor.isEmpty()){
                 if(hasLore(armor)){
                     //  if we find an aegis already in the chestplate slot, look for another chestplate in the main inventory to swap to.
-                    if(armor.getTag().getCompound(DISPLAY_KEY).get(LORE_KEY).asString().contains(aegisLore)){
-                        int slot = findSlotWithItem(startSlot, 36,"_chestplate", client.player.inventory);
+                    if(armor.getNbt().getCompound(DISPLAY_KEY).get(LORE_KEY).asString().contains(aegisLore)){
+                        int slot = findSlotWithItem(startSlot, 36,"_chestplate", client.player.getInventory());
                         if (slot != -1){
                             client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId,
                                     slot,
@@ -257,9 +264,9 @@ public class BetterMinewind implements ModInitializer {
                                     SlotActionType.SWAP, client.player);
                         }
                     } else{
-                        int aegisSlot = findSlotWithLore(startSlot, 36,aegisLore, client.player.inventory.main);
+                        int aegisSlot = findSlotWithLore(startSlot, 36,aegisLore, client.player.getInventory().main);
                         if(aegisSlot != -1){
-                            int aegisBookSlot = findSlotWithLore(startSlot, 36, aegisBookLore, client.player.inventory.main);
+                            int aegisBookSlot = findSlotWithLore(startSlot, 36, aegisBookLore, client.player.getInventory().main);
                             if(aegisBookSlot != -1){
                                 client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId,
                                         aegisBookSlot,
@@ -275,7 +282,7 @@ public class BetterMinewind implements ModInitializer {
                     }
                 }
                 else {
-                    int slot = findSlotWithItem(startSlot, 36, "_chestplate", client.player.inventory);
+                    int slot = findSlotWithItem(startSlot, 36, "_chestplate", client.player.getInventory());
                     if (slot != -1){
                         client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId,
                                 slot,
@@ -288,7 +295,7 @@ public class BetterMinewind implements ModInitializer {
         }
 
         while(offhandHotswapBindingZord.wasPressed()){
-            PlayerInventory inventory = client.player.inventory;
+            PlayerInventory inventory = client.player.getInventory();
             int zordBookSlot    = findSlotWithLore(0,36,"This book keeps blinking!", inventory.main);
             if(zordBookSlot == -1) {
                 zordBookSlot = findSlotWithLore(0, 1, "This book keeps blinking!", inventory.offHand);
@@ -308,7 +315,7 @@ public class BetterMinewind implements ModInitializer {
         }
 
         while(offhandHotswapBindingGc.wasPressed()){
-            PlayerInventory inventory = client.player.inventory;
+            PlayerInventory inventory = client.player.getInventory();
             int gcBookSlot    = findSlotWithLore(0,36,"Forbidden texts written", inventory.main);
             if(gcBookSlot == -1) {
                 gcBookSlot = findSlotWithLore(0, 1, "Forbidden texts written", inventory.offHand);
@@ -328,7 +335,7 @@ public class BetterMinewind implements ModInitializer {
         }
 
         while (offhandHotswapBindingBs.wasPressed()) {
-            int slot = findSlotWithLore(0,36,"Sweet screams of death",client.player.inventory.main);
+            int slot = findSlotWithLore(0,36,"Sweet screams of death",client.player.getInventory().main);
             if(slot != -1){
                 client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId, slot, 40,          //40 = offhand
                         SlotActionType.SWAP, client.player);
@@ -336,7 +343,7 @@ public class BetterMinewind implements ModInitializer {
         }
 
         while (offhandHotswapBindingSrage.wasPressed()) {
-            int slot = findSlotWithLore(0,36,"Favorite tool of the Jolly Man",client.player.inventory.main);
+            int slot = findSlotWithLore(0,36,"Favorite tool of the Jolly Man",client.player.getInventory().main);
             if(slot != -1){
                 client.interactionManager.clickSlot(client.player.playerScreenHandler.syncId, slot, 40,          //40 = offhand
                         SlotActionType.SWAP, client.player);
@@ -344,7 +351,7 @@ public class BetterMinewind implements ModInitializer {
         }
 
         while (offhandHotswapBindingFmb.wasPressed()) {
-            PlayerInventory inventory = client.player.inventory;
+            PlayerInventory inventory = client.player.getInventory();
             int iceBookSlot    = findSlotWithLore(0,36,"- Consumes 2 ice souls", inventory.main);
             if(iceBookSlot == -1) {
                 iceBookSlot = findSlotWithLore(0, 1, "- Consumes 1 ice soul", inventory.offHand);
@@ -381,8 +388,8 @@ public class BetterMinewind implements ModInitializer {
         while(i < upperSlotBound){
             ItemStack stack = main.get(i);
             if(hasLore(stack)){
-                String s = stack.getTag().getCompound(DISPLAY_KEY).get(LORE_KEY).asString();
-                if(stack.getTag().getCompound(DISPLAY_KEY).get(LORE_KEY).asString().contains(lore)){
+                String s = stack.getNbt().getCompound(DISPLAY_KEY).get(LORE_KEY).asString();
+                if(stack.getNbt().getCompound(DISPLAY_KEY).get(LORE_KEY).asString().contains(lore)){
                     return i;
                 }
             }
@@ -393,8 +400,8 @@ public class BetterMinewind implements ModInitializer {
 
     private boolean hasLore(ItemStack itemStack){
         if(!itemStack.isEmpty()){
-            if(itemStack.hasTag()){
-                CompoundTag tag = itemStack.getTag();
+            if(itemStack.hasNbt()){
+                NbtCompound tag = itemStack.getNbt();
                 if(tag.contains(DISPLAY_KEY)){
                     if(tag.getCompound(DISPLAY_KEY).contains(LORE_KEY)){
                         return true;
@@ -408,11 +415,17 @@ public class BetterMinewind implements ModInitializer {
     private void CheckForConsume(String lore){
         if(lore.contains("sword suffocated in a wall.")){
             if(hasLore(slotsToCheck[4])){
-                if(slotsToCheck[4].getTag().getCompound(DISPLAY_KEY).get(LORE_KEY).asString().contains("blinking!")){
+                if(slotsToCheck[4].getNbt().getCompound(DISPLAY_KEY).get(LORE_KEY).asString().contains("blinking!") || slotsToCheck[4].getNbt().getCompound(DISPLAY_KEY).get(LORE_KEY).asString().contains("sword suffocated in a wall.")){
                     souls[souls.length-1].ConsumeSoul(1);                                                        //souls.length-1 = last slot of the souls array which is always supposed to be zord
                 }
             }
-        }
+        }/* else if(lore.contains("blinking!")) {
+            if(hasLore(slotsToCheck[5])){
+                if(slotsToCheck[5].getNbt().getCompound(DISPLAY_KEY).get(LORE_KEY).asString().contains("sword suffocated in a wall.")){
+                    souls[souls.length-1].ConsumeSoul(1);                                                        //souls.length-1 = last slot of the souls array which is always supposed to be zord
+                }
+            }
+        }*/
         else if (lore.contains("- Consumes")) {
             boolean hasFoundMatchingSoul = false;
             int i = 0;

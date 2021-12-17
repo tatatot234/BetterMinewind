@@ -6,7 +6,8 @@
   "name": "Better Minewind",
   "description": "A quality of life mod for the Minewind server",
   "authors": [
-    "tatatot234"
+    "tatatot234",
+    "Picono435"
   ],
   "contact": {
     "homepage": "",
@@ -28,7 +29,7 @@
   "depends": {
     "fabricloader": ">=0.7.4",
     "fabric": "*",
-    "minecraft": "1.16.x"
+    "minecraft": "1.18.x"
   },
   "suggests": {
     "another-mod": "*"

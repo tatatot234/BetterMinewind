@@ -1,6 +1,8 @@
 package com.tatatot234.betterMinewind;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawableHelper;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.util.math.MatrixStack;
 
@@ -82,17 +84,17 @@ public class Soul {
 
     public void drawSoul(InGameHud hud, MatrixStack matrixStack, int soulNumber){
         if(this.soulCount>0){
-            hud.drawTexture(matrixStack, 5, 80+(soulNumber*18), 16, 16,
+            DrawableHelper.drawTexture(matrixStack, 5, 80+(soulNumber*18), 16, 16,
                     spritePosX, spritePosY, 16, 16, 64, 64);
         } else{
-            hud.drawTexture(matrixStack, 5, 80+(soulNumber*18), 16, 16,
+            DrawableHelper.drawTexture(matrixStack, 5, 80+(soulNumber*18), 16, 16,
                     spritePosX+16, spritePosY, 16, 16, 64, 64);
         }
         drawSoulCount(hud, matrixStack, soulNumber);
     }
 
     public void drawSoulCount(InGameHud hud, MatrixStack matrixStack, int activeSouls){
-        TextRenderer textRenderer = hud.getFontRenderer();
+        TextRenderer textRenderer = hud.getTextRenderer();
         textRenderer.drawWithShadow(matrixStack,String.valueOf(soulCount) ,5+16-7, 80+(activeSouls*18)+16-5,16777215);
 
     }
