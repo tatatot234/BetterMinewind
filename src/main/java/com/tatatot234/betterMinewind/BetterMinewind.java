@@ -113,8 +113,12 @@ public class BetterMinewind implements ModInitializer {
                     RenderSystem.setShader(GameRenderer::getPositionTexShader);
                     RenderSystem.setShaderTexture(0, soulSprites);
                     if(souls[i].soulId == zordSoul.soulId){
-                        if(hasLore(mc.player.getOffHandStack())){
-                            souls[i].drawSoul(hud, matrixStack, activeSouls);
+                        if(mc.player.getOffHandStack() != null) {
+                            if(hasLore(mc.player.getOffHandStack())){
+                                if(mc.player.getOffHandStack().getNbt().getCompound(DISPLAY_KEY).get(LORE_KEY).asString().contains("blinking!") || mc.player.getOffHandStack().getNbt().getCompound(DISPLAY_KEY).get(LORE_KEY).asString().contains("sword suffocated in a wall.")) {
+                                    souls[i].drawSoul(hud, matrixStack, activeSouls);
+                                }
+                            }
                         }
                     } else{
                         souls[i].drawSoul(hud, matrixStack, activeSouls);
